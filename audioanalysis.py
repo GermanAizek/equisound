@@ -22,16 +22,20 @@ featuresound = {
 	"samples" : None
 }
 
-CONST_SENS = 5 # percent
+CONST_SENS = 1 # parameter feel
 
-POS_OPT = 0
-NEG_OPT = 0
-
-POS_PARABOLS = [ ]
-NEG_PARABOLS = [ ]
+POS_ISEMIPARABOLS = [ ]
+NEG_ISEMIPARABOLS = [ ]
+POS_EXSEMIPARABOLS = [ ]
+NEG_EXSEMIPARABOLS = [ ]
 
 def openSound(path, mode):
-	wav = wave.open(path, mode=mode)
+	try:
+		wav = wave.open(path, mode=mode)
+	except FileNotFoundError as e:
+		print(e)
+		sys.exit()
+
 	nchannels, sampwidth, framerate, nframes, comptype, compname = wav.getparams()
 	content = wav.readframes(nframes)
 	samples = np.fromstring(content, dtype=types[sampwidth])
@@ -63,92 +67,119 @@ def showGraphic(width, height, featuresound, samples):
 
 		axes = plt.subplot(2, 1, n+1)
 		axes.plot(channel, 'g')
+		#plt.fill([0, float(width)/DPI], [0, int(float(height)/DPI)], 'b')
 		plt.grid(True, color='blue')
 
-	#axes.xaxis.set_major_formatter(ticker.FuncFormatter(format_time))
-	plt.savefig("Sound view", dpi=DPI)
 	plt.show()
 
-# def showGraphicTable(width, height, featuresound, samples):
-# 	for i in range(0, len(featuresound)):
-# 		duration = featuresound[i]["nframes"] / featuresound[i]["framerate"]
-# 		DPI = 72
-# 		peak = 256 ** featuresound[i]["sampwidth"] * 0.5
-# 		k = math.ceil(featuresound[i]["nframes"] / width / 32)
+def calcRanges(parabols):
+	RANGES = [ ]
 
-# 		plt.figure(1, figsize=(float(width)/DPI, float(height)/DPI), dpi=DPI)
-# 		plt.subplots_adjust(wspace=0, hspace=0)
+	froma = list(parabols)
+	toa = list(parabols)
+	for i in range(len(parabols)):
+		froma[i] = int(round(parabols[i]-((parabols[i]/100)*CONST_SENS*100)))
+		toa[i] = int(round(parabols[i]+((parabols[i]/100)*CONST_SENS*100)))
+		RANGES.append(range(froma[i], toa[i]+1))
 
-# 		for n in range(featuresound[i]["nchannels"]):
-# 			channel = samples[i][n::featuresound[i]["nchannels"]]
+	return RANGES
 
-# 			channel = channel[0::k]
-# 			if featuresound[i]["nchannels"] == 1:
-# 				channel = channel - peak
-
-# 			axes = plt.subplot(2, 1, n+1)
-# 			axes.plot(channel, 'g')
-# 			plt.grid(True, color='blue')
-
-# 		#axes.xaxis.set_major_formatter(ticker.FuncFormatter(format_time))
-# 		plt.savefig("Sound view", dpi=DPI)
-# 		plt.show()
-
-# calc
 def analyseChannel(exsample, exchan, isample, ichan):
 	sumparabol = 0
+	tmp = 0
 
 	print("Analysis started. Please wait, it may take a long time...")
 	for n in range(exchan):
-		for value in exsample[n::exchan]:
-			if value+1 < len(exsample[n::exchan]):
-				if exsample[n::exchan][value+1] >= exsample[n::exchan][value]:
-					sumparabol += value
-				else:
-					sumparabol += value
-					if value+2 < len(exsample[n::exchan]):
-						if exsample[n::exchan][value+2] >= exsample[n::exchan][value+1]:
-							POS_PARABOLS.append(sumparabol)
-							sumparabol = 0
-					else:
-						POS_PARABOLS.append(sumparabol)
-						break
+		for i in range(len(exsample[n::exchan])):
+			if tmp < exsample[n::exchan][i]:
+				tmp = exsample[n::exchan][i]
+				sumparabol += tmp
 			else:
-				POS_PARABOLS.append(sumparabol)
-				break
+				POS_EXSEMIPARABOLS.append(sumparabol)
+				sumparabol = 0
 
-	sumparabol = 0			
-
+			if tmp > exsample[n::exchan][i]:
+				tmp = exsample[n::exchan][i]
+				sumparabol += tmp
+			else:
+				NEG_EXSEMIPARABOLS.append(sumparabol)
+				sumparabol = 0
+			
 	for m in range(ichan):
-		for ivalue in isample[m::ichan]:
-			if ivalue+1 < len(isample[m::ichan]):
-				if isample[m::ichan][ivalue+1] >= isample[m::ichan][ivalue]:
-					sumparabol += ivalue
-				else:
-					sumparabol += ivalue
-					if ivalue+2 < len(isample[m::ichan]):
-						if isample[m::ichan][ivalue+2] >= isample[m::ichan][ivalue+1]:
-							POS_PARABOLS.append(sumparabol)
-							sumparabol = 0
-					else:
-						POS_PARABOLS.append(sumparabol)
-						break
+		for i in range(len(isample[m::ichan])):
+			if tmp < isample[m::ichan][i]:
+				tmp = isample[m::ichan][i]
+				sumparabol += tmp
 			else:
-				POS_PARABOLS.append(sumparabol)
-				break
+				POS_ISEMIPARABOLS.append(sumparabol)
+				sumparabol = 0
+
+			if tmp > isample[m::ichan][i]:
+				tmp = isample[m::ichan][i]
+				sumparabol += tmp
+			else:
+				NEG_ISEMIPARABOLS.append(sumparabol)
+				sumparabol = 0
 
 
-	#for val_range in range(int(value-((value/100)*CONST_SENS)), int(value+((value/100)*CONST_SENS))):
-	#	global POS_OPT, NEG_OPT
-	#	if ivalue == val_range:
-	#		POS_OPT += 1
-	#	else:
-	#		NEG_OPT += 1
-		
-	#	print(POS_OPT)
-	#	print(NEG_OPT)
-		print(POS_PARABOLS)
+	#POS_EXSEMIPARABOLS
+	#NEG_EXSEMIPARABOLS
+	#POS_ISEMIPARABOLS
+	#NEG_ISEMIPARABOLS
+	# EXPARABOLS = [ ]
+	# for i in POS_EXSEMIPARABOLS:
+	# 	EXPARABOLS.append(i)
 
+	# for i in NEG_EXSEMIPARABOLS:
+	# 	EXPARABOLS[i] += i
+
+	# print(EXPARABOLS)
+
+	posexp = calcRanges(POS_EXSEMIPARABOLS)
+	negexp = calcRanges(NEG_EXSEMIPARABOLS)
+	#posip = calcRanges(POS_ISEMIPARABOLS)
+	#negip = calcRanges(NEG_ISEMIPARABOLS)
+
+	pos_opt = 0
+	neg_opt = 0
+
+	#print(len(set(POS_EXSEMIPARABOLS)))
+	#print(len(POS_ISEMIPARABOLS))
+	# count = 0
+	# for i in POS_ISEMIPARABOLS:
+	# 	for j in posexp:
+	# 		if POS_ISEMIPARABOLS[i] in posexp[j]:
+	# 			pos_opt += 1
+	# 			count += 1
+	# 			#if len(set(POS_EXSEMIPARABOLS)) == len(POS_ISEMIPARABOLS):
+	# 		else:
+	#  			neg_opt += 1
+	#  			count = 0
+
+	count = 0
+	for i in range(len(POS_ISEMIPARABOLS)):
+		if i < len(posexp):
+			if POS_ISEMIPARABOLS[i] in posexp[i]:
+				pos_opt += 1
+				count += 1
+				if count < 1:
+					pos_opt *= count
+			else:
+	 			neg_opt += 1
+	 			count = 0
+
+	for i in range(len(NEG_ISEMIPARABOLS)):
+		if i < len(negexp):
+			if NEG_ISEMIPARABOLS[i] in negexp[i]:
+				pos_opt += 1
+				count += 1
+				if count < 1:
+					pos_opt *= count
+			else:
+	 			neg_opt += 1
+	 			count = 0
+
+	return pos_opt, neg_opt
 
 if __name__ == "__main__":
 	try:
@@ -156,29 +187,21 @@ if __name__ == "__main__":
 			raise Exception("Error! First parameter is not specified!\nHelp:\n audioanalysis {exam.wav} {input.wav}\n or\n audioanalysis {exams.txt} {input.wav} - where in TXT is a list of example names.")
 		elif not 2 < len(sys.argv):
 			raise Exception("Error! Second parameter is not specified!\nHelp:\n audioanalysis {exam.wav} {input.wav}\n or\n audioanalysis {exams.txt} {input.wav} - where in TXT is a list of example names.")
-		#else:
-		#	raise Exception("Parameters a lot!\nHelp:\n audioanalysis {exam.wav} {input.wav}\n or\n audioanalysis {exams.txt} {input.wav} - where in TXT is a list of example names.")
 	except Exception as error:
 		print(error)
 		sys.exit()
 
 	exsamples, exchan, exfeature = openSound(sys.argv[1], 'r') #exams
 	isamples, ichan, ifeature = openSound(sys.argv[2], 'r') # input
-	
-	#features, samples = [ ], [ ]
-	#features.append(exfeature)
-	#features.append(ifeature)
-	#samples.append(exsamples)
-	#samples.append(isamples)
 
-	#showGraphicTable(1000, 500, features, samples)
-	showGraphic(1000, 500, exfeature, exsamples)
-	showGraphic(1000, 500, ifeature, isamples)
+	#showGraphic(1000, 500, exfeature, exsamples)
+	#showGraphic(1000, 500, ifeature, isamples)
 
-	#analyseChannel(exsample, exchan, isample, ichan)
+	pos_opt, neg_opt = analyseChannel(exsamples, exchan, isamples, ichan)
 
 	try:
-		print("Match percentage = {0}".format((POS_OPT/POS_OPT+NEG_OPT)*100))
+		print("Match percentage = {0}%".format((pos_opt/(pos_opt+neg_opt))*100))
 	except ZeroDivisionError as error:
 		print(error)
 		#sys.exit()
+ 
